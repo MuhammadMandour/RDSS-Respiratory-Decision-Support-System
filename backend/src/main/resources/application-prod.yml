@@ -1,0 +1,11 @@
+# Production-oriented profile: secrets are mandatory (validated at startup),
+# API docs are disabled unless explicitly enabled, demo data is off by default.
+springdoc:
+  api-docs:
+    enabled: ${API_DOCS_ENABLED:false}
+  swagger-ui:
+    enabled: ${API_DOCS_ENABLED:false}
+
+rdss:
+  seed:
+    demo-data: ${SEED_DEMO_DATA:false}

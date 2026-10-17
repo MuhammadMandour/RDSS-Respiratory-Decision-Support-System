@@ -1,0 +1,15 @@
+rdss:
+  security:
+    jwt:
+      secret: test-secret-for-automated-tests-only-0123456789
+  orthanc:
+    # Nothing listens here in tests; imaging tests stub the client.
+    url: http://127.0.0.1:1
+    connect-timeout: PT0.2S
+    read-timeout: PT0.5S
+  seed:
+    demo-data: false
+  hl7:
+    inbound-api-key: test-integration-key-0123456789
+    # Retries are triggered explicitly in tests.
+    retry-interval: PT1H

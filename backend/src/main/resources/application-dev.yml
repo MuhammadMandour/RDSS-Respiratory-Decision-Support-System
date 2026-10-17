@@ -1,0 +1,17 @@
+# Local development profile. Never use these defaults in a shared environment.
+rdss:
+  security:
+    jwt:
+      secret: ${JWT_SECRET:dev-only-insecure-secret-change-me-0123456789abcdef}
+  seed:
+    demo-data: ${SEED_DEMO_DATA:true}
+    # Shared password for all synthetic demo accounts in local development.
+    demo-password: ${DEMO_USER_PASSWORD:Demo-Pass-2026}
+
+springdoc:
+  swagger-ui:
+    enabled: true
+
+logging:
+  level:
+    com.rdss: DEBUG

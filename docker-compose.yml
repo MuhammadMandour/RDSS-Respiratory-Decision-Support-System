@@ -1,0 +1,124 @@
+# RDSS - production-oriented compose file.
+#  * Only the frontend (nginx) is published, and only on the loopback interface by default.
+#  * postgres and orthanc live on an internal network with no route to the host.
+#  * All secrets come from .env (copy .env.example). Required values fail fast if missing.
+#
+# Development: docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+
+name: rdss
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-rdss}
+      POSTGRES_USER: ${POSTGRES_USER:-rdss}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  orthanc:
+    image: orthancteam/orthanc:${ORTHANC_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      ORTHANC__NAME: RDSS-ORTHANC
+      ORTHANC__DICOM_AET: ${ORTHANC_DICOM_AET:-RDSS}
+      ORTHANC__AUTHENTICATION_ENABLED: "true"
+      ORTHANC__REMOTE_ACCESS_ALLOWED: "true"
+      ORTHANC__REGISTERED_USERS: '{"${ORTHANC_USERNAME:-rdss}": "${ORTHANC_PASSWORD:?Set ORTHANC_PASSWORD in .env}"}'
+      ORTHANC__STORAGE_DIRECTORY: /var/lib/orthanc/db
+      # Original DICOM files are stored unmodified; never let Orthanc rewrite them on ingest.
+      ORTHANC__OVERWRITE_INSTANCES: "false"
+      DICOM_WEB_PLUGIN_ENABLED: "true"
+      ORTHANC__DICOM_WEB__ENABLE: "true"
+      ORTHANC__DICOM_WEB__ROOT: /dicom-web/
+      VERBOSE_ENABLED: "false"
+    volumes:
+      - orthanc-data:/var/lib/orthanc/db
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "python3", "/probes/test-aliveness.py"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  backend:
+    build:
+      context: ./backend
+    image: rdss-backend:${RDSS_VERSION:-local}
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-rdss}
+      DB_USERNAME: ${POSTGRES_USER:-rdss}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env (at least 32 characters)}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-PT8H}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8080}
+      ORTHANC_URL: http://orthanc:8042
+      ORTHANC_USERNAME: ${ORTHANC_USERNAME:-rdss}
+      ORTHANC_PASSWORD: ${ORTHANC_PASSWORD:?Set ORTHANC_PASSWORD in .env}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
+      DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD:-}
+      BOOTSTRAP_ADMIN_USERNAME: ${BOOTSTRAP_ADMIN_USERNAME:-admin}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-admin@rdss.local}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+      API_DOCS_ENABLED: ${API_DOCS_ENABLED:-false}
+      HL7_INBOUND_API_KEY: ${HL7_INBOUND_API_KEY:-}
+      HL7_MLLP_ENABLED: ${HL7_MLLP_ENABLED:-false}
+      HL7_MLLP_PORT: "2575"
+      CDSS_MOCK_INFERENCE: ${CDSS_MOCK_INFERENCE:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      orthanc:
+        condition: service_healthy
+    networks: [internal, edge]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/actuator/health/readiness >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  viewer:
+    # OHIF Viewer, relocated under /ohif/ and configured for the RDSS DICOMweb proxy.
+    build:
+      context: ./viewer
+    image: rdss-viewer:${RDSS_VERSION:-local}
+    restart: unless-stopped
+    networks: [edge]
+
+  frontend:
+    build:
+      context: ./frontend
+    image: rdss-frontend:${RDSS_VERSION:-local}
+    restart: unless-stopped
+    ports:
+      - "${RDSS_BIND_ADDRESS:-127.0.0.1}:${RDSS_HTTP_PORT:-8080}:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+      viewer:
+        condition: service_healthy
+    networks: [edge]
+
+networks:
+  # No external connectivity: database and DICOM admin services are unreachable from outside.
+  internal:
+    internal: true
+  edge: {}
+
+volumes:
+  postgres-data:
+  orthanc-data:

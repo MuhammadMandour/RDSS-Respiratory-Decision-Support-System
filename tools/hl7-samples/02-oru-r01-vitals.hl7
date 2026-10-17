@@ -1,0 +1,9 @@
+MSH|^~\&|MONITOR|CITYHOSP|RDSS|RDSS|20261016121000||ORU^R01^ORU_R01|SAMPLE-ORU-0001|P|2.5
+PID|1||SYN-0001^^^CITYHOSP^MR||Sample^Riley
+OBR|1|ORD-1|FIL-1|85353-1^Vital signs panel^LN|||20261016120500
+OBX|1|NM|9279-1^Respiratory rate^LN||24|/min|||||F
+OBX|2|NM|59408-5^Oxygen saturation by pulse oximetry^LN||92|%|||||F
+OBX|3|NM|8867-4^Heart rate^LN||112|/min|||||F
+OBX|4|NM|8480-6^Systolic blood pressure^LN||102|mm[Hg]|||||F
+OBX|5|NM|8462-4^Diastolic blood pressure^LN||64|mm[Hg]|||||F
+OBX|6|NM|8310-5^Body temperature^LN||38.6|Cel|||||F

@@ -1,0 +1,15 @@
+{
+  "name": "rdss-e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "typecheck": "tsc --noEmit",
+    "install-browsers": "playwright install chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/node": "22.18.0",
+    "typescript": "5.9.3"
+  }
+}

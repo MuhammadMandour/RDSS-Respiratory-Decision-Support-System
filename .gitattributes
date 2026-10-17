@@ -1,0 +1,11 @@
+# Normalise text files; keep LF for files executed or parsed inside Linux containers.
+* text=auto
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.conf text eol=lf
+*.hl7 text eol=lf
+*.py text eol=lf
+*.ps1 text eol=crlf
+*.png binary
+*.dcm binary
+*.gz binary

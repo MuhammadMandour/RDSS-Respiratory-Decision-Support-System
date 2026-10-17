@@ -1,0 +1,105 @@
+spring:
+  application:
+    name: rdss-backend
+  autoconfigure:
+    # Authentication is JWT-based; the default in-memory user (and its logged password) is not used.
+    exclude: org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+  profiles:
+    default: dev
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/rdss}
+    username: ${DB_USERNAME:rdss}
+    password: ${DB_PASSWORD:}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+  servlet:
+    multipart:
+      max-file-size: ${UPLOAD_MAX_FILE_SIZE:200MB}
+      max-request-size: ${UPLOAD_MAX_REQUEST_SIZE:500MB}
+
+server:
+  port: ${SERVER_PORT:8080}
+  error:
+    include-message: never
+    include-stacktrace: never
+  forward-headers-strategy: framework
+  tomcat:
+    # Tomcat caps multipart requests at 10 parts by default; a CT series upload has hundreds.
+    # Must stay >= ImagingService.MAX_FILES_PER_UPLOAD (+ form fields).
+    max-part-count: 2010
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  info:
+    build:
+      enabled: true
+
+springdoc:
+  api-docs:
+    path: /api/v1/openapi.json
+  swagger-ui:
+    path: /api/v1/docs
+
+rdss:
+  security:
+    jwt:
+      # Must be at least 32 bytes. Always override via JWT_SECRET outside local dev.
+      secret: ${JWT_SECRET:}
+      expiration: ${JWT_EXPIRATION:PT8H}
+      issuer: rdss
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:8080}
+  orthanc:
+    url: ${ORTHANC_URL:http://localhost:8042}
+    username: ${ORTHANC_USERNAME:rdss}
+    password: ${ORTHANC_PASSWORD:}
+    connect-timeout: PT3S
+    read-timeout: PT60S
+  hl7:
+    # Shared secret for POST /api/v1/hl7/messages (header X-Integration-Key). Empty = endpoint disabled.
+    inbound-api-key: ${HL7_INBOUND_API_KEY:}
+    mllp:
+      enabled: ${HL7_MLLP_ENABLED:false}
+      port: ${HL7_MLLP_PORT:2575}
+    retry-interval: PT1M
+  cdss:
+    mock-inference:
+      # DEMONSTRATION ONLY: shows where ML output would appear. No validated model is shipped.
+      enabled: ${CDSS_MOCK_INFERENCE:false}
+  seed:
+    demo-data: ${SEED_DEMO_DATA:false}
+    demo-password: ${DEMO_USER_PASSWORD:}
+  bootstrap:
+    admin-username: ${BOOTSTRAP_ADMIN_USERNAME:admin}
+    admin-email: ${BOOTSTRAP_ADMIN_EMAIL:admin@rdss.local}
+    # Only used when no administrator exists yet. Leave empty to skip bootstrapping.
+    admin-password: ${BOOTSTRAP_ADMIN_PASSWORD:}
+
+logging:
+  level:
+    root: INFO
+    com.rdss: INFO
+    org.hibernate.SQL: WARN
